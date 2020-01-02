@@ -1,0 +1,36 @@
+{
+	"name": "status-bar-reader",
+	"displayName": "status-bar-reader",
+	"description": "read book on status bar",
+	"main": "./out/extension.js",
+	"publisher": "umi-aoi",
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "tslint -p ./",
+		"watch": "tsc -watch -p ./"
+	},
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.41.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"*"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "extension.helloWorld",
+				"title": "Hello World"
+			}
+		]
+	},
+	"extensionPack": [],
+	"devDependencies": {
+		"@types/node": "^13.1.2",
+		"@types/vscode": "^1.41.0"
+	}
+}
