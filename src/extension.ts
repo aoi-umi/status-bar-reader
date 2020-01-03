@@ -6,24 +6,24 @@ import * as readline from 'readline';
 let myStatusBarItem: vscode.StatusBarItem;
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
+	let reader = new Reader();
 	const name = 'statusBarReader';
 	const next = `${name}.next`;
 	const prev = `${name}.prev`;
 	const nextLine = `${name}.nextLine`;
 	const prevLine = `${name}.prevLine`;
 
-
 	subscriptions.push(vscode.commands.registerCommand(next, () => {
-		Reader.next();
+		reader.next();
 	}));
 	subscriptions.push(vscode.commands.registerCommand(nextLine, () => {
-		Reader.next(true);
+		reader.next(true);
 	}));
 	subscriptions.push(vscode.commands.registerCommand(prev, () => {
-		Reader.prev();
+		reader.prev();
 	}));
 	subscriptions.push(vscode.commands.registerCommand(prevLine, () => {
-		Reader.prev(true);
+		reader.prev(true);
 	}));
 
 	// create a new status bar item that we can now manage
@@ -31,13 +31,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	myStatusBarItem.command = next;
 	subscriptions.push(myStatusBarItem);
 
-	// register some listener that make sure the status bar 
-	// item always up-to-date
-	// subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateStatusBarItem));
-	// subscriptions.push(vscode.window.onDidChangeTextEditorSelection(updateStatusBarItem));
-
 	myStatusBarItem.show();
-	Reader.init();
+	reader.init();
 }
 
 const BookStatus = {
@@ -46,26 +41,26 @@ const BookStatus = {
 	end: 2
 };
 class Reader {
-	static textLength = 20;
-	static rl: readline.Interface;
-	static lines: string[] = [];
-	static currLine = 0;
-	static resume = true;
-	static idx = 0;
-	static currText = '';
-	static bookStatus = BookStatus.start;
-	static init() {
-		Reader.updateText('init');
+	textLength = 20;
+	rl: readline.Interface;
+	lines: string[] = [];
+	currLine = 0;
+	resume = true;
+	idx = 0;
+	currText = '';
+	bookStatus = BookStatus.start;
+	init() {
+		this.updateText('init');
 		let dirPath = path.join(__dirname, '../book');
 		let files = fs.readdirSync(dirPath);
 		let file = files[0];
 
-		Reader.updateText('init finished');
+		this.updateText('init finished');
 		if (!file) {
-			Reader.updateText('no book');
+			this.updateText('no book');
 			return;
 		}
-		Reader.updateText('loading book');
+		this.updateText('loading book');
 		let readStream = fs.createReadStream(path.join(dirPath, file), {
 			encoding: 'utf-8',
 		});
@@ -79,32 +74,32 @@ class Reader {
 		});
 	}
 
-	static updateText(text: string) {
+	updateText(text: string) {
 		myStatusBarItem.text = text;
 	}
 
-	static handleLine(line: string) {
+	handleLine(line: string) {
 		this.rl.pause();
 		this.lines.push(line);
 	}
 
-	static readData() {
+	readData() {
 		this.rl.resume();
 	}
 
-	static setText() {
+	setText() {
 		let text = this.lines[this.currLine];
 		this.currText = text.substr(this.idx, this.textLength);
 		this.updateText(this.currText);
 		this.bookStatus = BookStatus.reading;
 	}
 
-	static clear() {
+	clear() {
 		this.idx = 0;
 		this.currText = '';
 	}
 
-	static next(line?: boolean) {
+	next(line?: boolean) {
 		if (this.bookStatus === BookStatus.end)
 			return;
 		if (!this.rl)
@@ -135,7 +130,7 @@ class Reader {
 		this.setText();
 	}
 
-	static prev(line?: boolean) {
+	prev(line?: boolean) {
 		if (this.bookStatus === BookStatus.start)
 			return;
 		if (this.currLine === 0 && this.idx === 0) {
