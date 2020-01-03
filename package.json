@@ -23,8 +23,26 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "extension.helloWorld",
-				"title": "Hello World"
+				"command": "statusBarReader.next",
+				"title": "StatusBarReader: next"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "statusBarReader.next",
+				"key": "ctrl+right"
+			},
+			{
+				"command": "statusBarReader.prev",
+				"key": "ctrl+left"
+			},
+			{
+				"command": "statusBarReader.nextLine",
+				"key": "ctrl+down"
+			},
+			{
+				"command": "statusBarReader.prevLine",
+				"key": "ctrl+up"
 			}
 		]
 	},

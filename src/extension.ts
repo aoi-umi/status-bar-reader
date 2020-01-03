@@ -6,26 +6,29 @@ import * as readline from 'readline';
 let myStatusBarItem: vscode.StatusBarItem;
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
+	const name = 'statusBarReader';
+	const next = `${name}.next`;
+	const prev = `${name}.prev`;
+	const nextLine = `${name}.nextLine`;
+	const prevLine = `${name}.prevLine`;
 
-	// register a command that is invoked when the status bar
-	// item is selected
-	const nextLine = 'extension.helloWorld';
-	// subscriptions.push(vscode.commands.registerCommand(myCommandId, () => {
-	// 	let n = getNumberOfSelectedLines(vscode.window.activeTextEditor);
-	// 	vscode.window.showInformationMessage(`Yeah, ${n} line(s) selected... Keep going!`);
-	// }));
 
-	let disposable = vscode.commands.registerCommand(nextLine, () => {
-		// The code you place here will be executed every time your command is executed
-
-		// Display a message box to the user
-		Reader.nextLine();
-	});
-	subscriptions.push(disposable);
+	subscriptions.push(vscode.commands.registerCommand(next, () => {
+		Reader.next();
+	}));
+	subscriptions.push(vscode.commands.registerCommand(nextLine, () => {
+		Reader.next(true);
+	}));
+	subscriptions.push(vscode.commands.registerCommand(prev, () => {
+		Reader.prev();
+	}));
+	subscriptions.push(vscode.commands.registerCommand(prevLine, () => {
+		Reader.prev(true);
+	}));
 
 	// create a new status bar item that we can now manage
 	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1000);
-	myStatusBarItem.command = nextLine;
+	myStatusBarItem.command = next;
 	subscriptions.push(myStatusBarItem);
 
 	// register some listener that make sure the status bar 
@@ -37,6 +40,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	Reader.init();
 }
 
+const BookStatus = {
+	start: 0,
+	reading: 1,
+	end: 2
+};
 class Reader {
 	static textLength = 20;
 	static rl: readline.Interface;
@@ -45,6 +53,7 @@ class Reader {
 	static resume = true;
 	static idx = 0;
 	static currText = '';
+	static bookStatus = BookStatus.start;
 	static init() {
 		Reader.updateText('init');
 		let dirPath = path.join(__dirname, '../book');
@@ -53,7 +62,7 @@ class Reader {
 
 		Reader.updateText('init finished');
 		if (!file) {
-			Reader.updateText(!file ? 'no book' : 'loading book');
+			Reader.updateText('no book');
 			return;
 		}
 		Reader.updateText('loading book');
@@ -65,6 +74,8 @@ class Reader {
 		});
 		rl.on('line', (chunk) => {
 			this.handleLine(chunk);
+			if (this.bookStatus === BookStatus.start)
+				this.next();
 		});
 	}
 
@@ -75,36 +86,77 @@ class Reader {
 	static handleLine(line: string) {
 		this.rl.pause();
 		this.lines.push(line);
-		if (this.resume) {
-			this.nextLine();
-			this.resume = false;
-		}
 	}
 
-	static nextLine() {
+	static readData() {
+		this.rl.resume();
+	}
+
+	static setText() {
+		let text = this.lines[this.currLine];
+		this.currText = text.substr(this.idx, this.textLength);
+		this.updateText(this.currText);
+		this.bookStatus = BookStatus.reading;
+	}
+
+	static clear() {
+		this.idx = 0;
+		this.currText = '';
+	}
+
+	static next(line?: boolean) {
+		if (this.bookStatus === BookStatus.end)
+			return;
 		if (!this.rl)
-			return
+			return;
 		let lastLine = this.currLine >= this.lines.length - 1;
 		let text = this.lines[this.currLine];
 		let lastChar = !text || this.idx + this.currText.length >= text.length;
 
+		let closed = (this.rl as any).closed;
+
 		if (lastLine && lastChar) {
-			if ((this.rl as any).closed) {
-				this.updateText('### finished ###');
+			if (closed) {
+				this.updateText('### book end ###');
+				this.clear();
+				this.bookStatus = BookStatus.end;
 				return;
 			}
+		}
+		if (!closed && (this.currLine >= this.lines.length - 2))
+			this.readData();
 
-			this.resume = true;
-			this.rl.resume();
+		this.idx = this.idx + this.currText.length
+		if (line || this.idx + this.currText.length >= text.length) {
+			if (this.bookStatus !== BookStatus.start)
+				this.currLine++;
+			this.clear();
+		}
+		this.setText();
+	}
+
+	static prev(line?: boolean) {
+		if (this.bookStatus === BookStatus.start)
+			return;
+		if (this.currLine === 0 && this.idx === 0) {
+			this.updateText('### book start ###');
+			this.clear();
+			this.bookStatus = BookStatus.start;
 			return;
 		}
-		this.currText = text.substr(this.idx, this.textLength);
-		this.updateText(this.currText);
-		if (this.idx + this.currText.length >= text.length) {
-			this.currLine++;
+		let text = this.lines[this.currLine];
+		if (line || this.idx === 0) {
+			if (this.bookStatus !== BookStatus.end)
+				this.currLine--;
 			this.idx = 0;
-			this.currText = '';
-		} else
-			this.idx = this.idx + this.currText.length;
+			text = this.lines[this.currLine];
+			if (!line && text.length > this.textLength)
+				this.idx = text.length - this.textLength;
+		} else {
+			this.idx = this.idx - this.textLength;
+			if (this.idx < 0)
+				this.idx = 0;
+		}
+		this.setText();
 	}
 }
