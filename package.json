@@ -21,12 +21,7 @@
 		"*"
 	],
 	"contributes": {
-		"commands": [
-			{
-				"command": "statusBarReader.next",
-				"title": "StatusBarReader: next"
-			}
-		],
+		"commands": [],
 		"keybindings": [
 			{
 				"command": "statusBarReader.next",
@@ -43,6 +38,14 @@
 			{
 				"command": "statusBarReader.prevLine",
 				"key": "ctrl+up"
+			},
+			{
+				"command": "statusBarReader.toggle",
+				"key": "ctrl+alt+,"
+			},
+			{
+				"command": "statusBarReader.line",
+				"key": "ctrl+alt+l"
 			}
 		]
 	},

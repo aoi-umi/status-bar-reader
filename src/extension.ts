@@ -12,6 +12,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	const prev = `${name}.prev`;
 	const nextLine = `${name}.nextLine`;
 	const prevLine = `${name}.prevLine`;
+	const bookList = `${name}.bookList`;
+	const toggle = `${name}.toggle`;
+	const line = `${name}.line`;
 
 	subscriptions.push(vscode.commands.registerCommand(next, () => {
 		reader.next();
@@ -25,14 +28,24 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	subscriptions.push(vscode.commands.registerCommand(prevLine, () => {
 		reader.prev(true);
 	}));
-
+	subscriptions.push(vscode.commands.registerCommand(bookList, () => {
+		reader.showBookList();
+	}));
+	subscriptions.push(vscode.commands.registerCommand(line, () => {
+		reader.toLine();
+	}));
+	let show = true;
+	subscriptions.push(vscode.commands.registerCommand(toggle, () => {
+		show ? myStatusBarItem.hide() : myStatusBarItem.show();
+		show = !show;
+	}));
 	// create a new status bar item that we can now manage
 	myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 1000);
-	myStatusBarItem.command = next;
+	myStatusBarItem.command = bookList;
 	subscriptions.push(myStatusBarItem);
 
 	myStatusBarItem.show();
-	reader.init();
+	reader.updateText('click to open a book');
 }
 
 const BookStatus = {
@@ -40,6 +53,7 @@ const BookStatus = {
 	reading: 1,
 	end: 2
 };
+let dirPath = path.join(__dirname, '../book');
 class Reader {
 	textLength = 20;
 	rl: readline.Interface;
@@ -49,25 +63,43 @@ class Reader {
 	idx = 0;
 	currText = '';
 	bookStatus = BookStatus.start;
-	init() {
-		this.updateText('init');
-		let dirPath = path.join(__dirname, '../book');
+	bookname = '';
+
+	getBookList() {
 		let files = fs.readdirSync(dirPath);
-		let file = files[0];
+		return files;
+	}
+
+	init() {
+		this.currLine = 0;
+		this.lines = [];
+		this.bookStatus = BookStatus.start;
+		this.clear();
+	}
+
+	loadBook(file?) {
+		this.updateText('init');
+		this.init();
+		if (!file) {
+			let files = this.getBookList();
+			file = files[0];
+		}
 
 		this.updateText('init finished');
 		if (!file) {
 			this.updateText('no book');
 			return;
 		}
+		this.bookname = file;
+		myStatusBarItem.tooltip = this.bookname;
 		this.updateText('loading book');
 		let readStream = fs.createReadStream(path.join(dirPath, file), {
 			encoding: 'utf-8',
 		});
-		const rl = this.rl = readline.createInterface({
+		this.rl = readline.createInterface({
 			input: readStream
 		});
-		rl.on('line', (chunk) => {
+		this.rl.on('line', (chunk) => {
 			this.handleLine(chunk);
 			if (this.bookStatus === BookStatus.start)
 				this.next();
@@ -153,5 +185,22 @@ class Reader {
 				this.idx = 0;
 		}
 		this.setText();
+	}
+
+	async showBookList() {
+		let list = this.getBookList();
+		let selectd = await vscode.window.showQuickPick(list);
+		selectd && this.loadBook(selectd);
+	}
+
+	async toLine() {
+		let num = 0;
+		await vscode.window.showInputBox({
+			validateInput: (val) => {
+				if (!/[0-9]+/.test(val))
+					return 'please input a number';
+				num = parseInt(val);
+			}
+		});
 	}
 }
