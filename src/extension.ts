@@ -6,7 +6,11 @@ import * as readline from 'readline';
 let myStatusBarItem: vscode.StatusBarItem;
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
-	let reader = new Reader();
+	let textLength = vscode.workspace.getConfiguration().get<number>("statusBarReader.textLength");
+
+	let reader = new Reader({
+		textLength
+	});
 	const name = 'statusBarReader';
 	const next = `${name}.next`;
 	const prev = `${name}.prev`;
@@ -72,14 +76,20 @@ type SaveData = {
 	line: number;
 	col: number;
 };
+
 class Reader {
-	textLength = 20;
 	rl: readline.Interface;
 	lines: string[] = [];
+	textLength = 20;
 	currLine = 0;
 	currCol = 0;
 	currText = '';
 	bookStatus = BookStatus.start;
+	constructor(opt: {
+		textLength: number
+	}) {
+		this.textLength = opt.textLength;
+	}
 
 	saveDataList: SaveData[] = [];
 	saveData: SaveData = {

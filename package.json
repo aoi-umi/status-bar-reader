@@ -47,7 +47,18 @@
 				"command": "statusBarReader.line",
 				"key": "ctrl+alt+l"
 			}
-		]
+		],
+		"configuration": {
+			"type": "object",
+			"title": "status-bar-reader",
+			"properties": {
+				"statusBarReader.textLength": {
+					"type": "number",
+					"default": 20,
+					"description": "每次显示字数"
+				}
+			}
+		}
 	},
 	"extensionPack": [],
 	"devDependencies": {
