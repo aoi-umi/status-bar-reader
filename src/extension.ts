@@ -32,7 +32,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		reader.showBookList();
 	}));
 	subscriptions.push(vscode.commands.registerCommand(line, () => {
-		reader.toLine();
+		reader.toLineClick();
 	}));
 	let show = true;
 	subscriptions.push(vscode.commands.registerCommand(toggle, () => {
@@ -45,7 +45,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	subscriptions.push(myStatusBarItem);
 
 	myStatusBarItem.show();
-	reader.updateText('click to open a book');
+	reader.initEnv();
 }
 
 const BookStatus = {
@@ -53,33 +53,104 @@ const BookStatus = {
 	reading: 1,
 	end: 2
 };
-let dirPath = path.join(__dirname, '../book');
+let bookDirPath = path.join(__dirname, '../book');
+let saveDataDirPath = path.join(__dirname, '../saveData');
+let saveDataPath = path.join(saveDataDirPath, './data.json');
+let mkdirsSync = function (dirname, mode?) {
+	if (fs.existsSync(dirname)) {
+		return true;
+	}
+	if (mkdirsSync(path.dirname(dirname), mode)) {
+		fs.mkdirSync(dirname, mode);
+		return true;
+	}
+	return false;
+}
+
+type SaveData = {
+	name: string;
+	line: number;
+	col: number;
+};
 class Reader {
 	textLength = 20;
 	rl: readline.Interface;
 	lines: string[] = [];
 	currLine = 0;
-	resume = true;
-	idx = 0;
+	currCol = 0;
 	currText = '';
 	bookStatus = BookStatus.start;
-	bookname = '';
+
+	saveDataList: SaveData[] = [];
+	saveData: SaveData = {
+		name: '',
+		line: 0,
+		col: 0,
+	};
+
+	async initEnv() {
+		this.updateText('init env');
+		mkdirsSync(saveDataDirPath);
+		if (!fs.existsSync(saveDataPath)) {
+			this.save();
+		} else {
+			let data = fs.readFileSync(saveDataPath, { encoding: 'utf-8' }).toString();
+			if (data)
+				this.saveDataList = JSON.parse(data);
+		}
+		this.updateText('click to open a book');
+	}
+
+	createSaveData() {
+		return `${JSON.stringify(this.saveDataList, null, '\t')}`;
+	}
+
+	save() {
+		fs.writeFileSync(saveDataPath, this.createSaveData());
+	}
+
+	getSaveDataByName(name: string) {
+		let idx = this.saveDataList.findIndex(ele => ele.name === name);
+		return {
+			idx,
+			saveData: this.saveDataList[idx],
+		};
+	}
+
+	saveProgress() {
+		if (this.currLine !== this.saveData.line
+			|| this.currCol !== this.saveData.col) {
+			let { idx } = this.getSaveDataByName(this.saveData.name);
+			this.saveData.line = this.currLine;
+			this.saveData.col = this.currCol;
+			if (idx < 0) {
+				this.saveDataList.unshift(this.saveData);
+			} else {
+				this.saveDataList.splice(idx, 1, this.saveData);
+			}
+			this.save();
+		}
+	}
 
 	getBookList() {
-		let files = fs.readdirSync(dirPath);
+		let files = fs.readdirSync(bookDirPath);
 		return files;
 	}
 
-	init() {
-		this.currLine = 0;
+	initBook() {
 		this.lines = [];
+		this.initStatus();
+	}
+
+	initStatus() {
+		this.currLine = 0;
 		this.bookStatus = BookStatus.start;
 		this.clear();
 	}
 
 	loadBook(file?) {
 		this.updateText('init');
-		this.init();
+		this.initBook();
 		if (!file) {
 			let files = this.getBookList();
 			file = files[0];
@@ -90,19 +161,26 @@ class Reader {
 			this.updateText('no book');
 			return;
 		}
-		this.bookname = file;
-		myStatusBarItem.tooltip = this.bookname;
+		this.saveData.name =
+			myStatusBarItem.tooltip = file;
 		this.updateText('loading book');
-		let readStream = fs.createReadStream(path.join(dirPath, file), {
+		let readStream = fs.createReadStream(path.join(bookDirPath, file), {
 			encoding: 'utf-8',
 		});
 		this.rl = readline.createInterface({
 			input: readStream
 		});
 		this.rl.on('line', (chunk) => {
-			this.handleLine(chunk);
-			if (this.bookStatus === BookStatus.start)
-				this.next();
+			this.lines.push(chunk);
+		});
+		this.rl.on('close', () => {
+			let { saveData } = this.getSaveDataByName(this.saveData.name);
+			if (saveData) {
+				this.saveData = saveData;
+				this.currLine = saveData.line;
+				this.currCol = saveData.col;
+			}
+			this.next();
 		});
 	}
 
@@ -110,51 +188,35 @@ class Reader {
 		myStatusBarItem.text = text;
 	}
 
-	handleLine(line: string) {
-		this.rl.pause();
-		this.lines.push(line);
-	}
-
-	readData() {
-		this.rl.resume();
-	}
-
 	setText() {
 		let text = this.lines[this.currLine];
-		this.currText = text.substr(this.idx, this.textLength);
-		this.updateText(this.currText);
+		this.currText = text.substr(this.currCol, this.textLength);
+		this.updateText(this.currText + `(${this.currLine + 1}/${this.lines.length})`);
 		this.bookStatus = BookStatus.reading;
+		this.saveProgress();
 	}
 
 	clear() {
-		this.idx = 0;
+		this.currCol = 0;
 		this.currText = '';
 	}
 
 	next(line?: boolean) {
 		if (this.bookStatus === BookStatus.end)
 			return;
-		if (!this.rl)
-			return;
 		let lastLine = this.currLine >= this.lines.length - 1;
 		let text = this.lines[this.currLine];
-		let lastChar = !text || this.idx + this.currText.length >= text.length;
-
-		let closed = (this.rl as any).closed;
+		let lastChar = !text || this.currCol + this.currText.length >= text.length;
 
 		if (lastLine && lastChar) {
-			if (closed) {
-				this.updateText('### book end ###');
-				this.clear();
-				this.bookStatus = BookStatus.end;
-				return;
-			}
+			this.updateText('### book end ###');
+			this.clear();
+			this.bookStatus = BookStatus.end;
+			return;
 		}
-		if (!closed && (this.currLine >= this.lines.length - 2))
-			this.readData();
 
-		this.idx = this.idx + this.currText.length
-		if (line || this.idx + this.currText.length >= text.length) {
+		this.currCol = this.currCol + this.currText.length
+		if (line || this.currCol + this.currText.length >= text.length) {
 			if (this.bookStatus !== BookStatus.start)
 				this.currLine++;
 			this.clear();
@@ -165,24 +227,24 @@ class Reader {
 	prev(line?: boolean) {
 		if (this.bookStatus === BookStatus.start)
 			return;
-		if (this.currLine === 0 && this.idx === 0) {
+		if (this.currLine === 0 && this.currCol === 0) {
 			this.updateText('### book start ###');
 			this.clear();
 			this.bookStatus = BookStatus.start;
 			return;
 		}
 		let text = this.lines[this.currLine];
-		if (line || this.idx === 0) {
+		if (line || this.currCol === 0) {
 			if (this.bookStatus !== BookStatus.end)
 				this.currLine--;
-			this.idx = 0;
+			this.currCol = 0;
 			text = this.lines[this.currLine];
 			if (!line && text.length > this.textLength)
-				this.idx = text.length - this.textLength;
+				this.currCol = text.length - this.textLength;
 		} else {
-			this.idx = this.idx - this.textLength;
-			if (this.idx < 0)
-				this.idx = 0;
+			this.currCol = this.currCol - this.textLength;
+			if (this.currCol < 0)
+				this.currCol = 0;
 		}
 		this.setText();
 	}
@@ -193,14 +255,31 @@ class Reader {
 		selectd && this.loadBook(selectd);
 	}
 
-	async toLine() {
+	async toLineClick() {
+		if (!this.lines.length) {
+			await vscode.window.showInformationMessage('please open a book');
+			return;
+		}
 		let num = 0;
 		await vscode.window.showInputBox({
 			validateInput: (val) => {
 				if (!/[0-9]+/.test(val))
 					return 'please input a number';
 				num = parseInt(val);
+				if (num <= 0 || num > this.lines.length)
+					return 'out of range';
 			}
 		});
+		if (num) {
+			this.goto(num);
+		}
+	}
+
+	goto(line: number, col?: number) {
+		this.initStatus();
+		this.currLine = line - 1;
+		if (col)
+			this.currCol = col;
+		this.next();
 	}
 }
