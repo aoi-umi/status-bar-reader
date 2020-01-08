@@ -38,7 +38,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	subscriptions.push(vscode.commands.registerCommand(line, () => {
 		reader.toLineClick();
 	}));
-	let show = true;
+	let show = false;
 	subscriptions.push(vscode.commands.registerCommand(toggle, () => {
 		show ? myStatusBarItem.hide() : myStatusBarItem.show();
 		show = !show;
@@ -75,6 +75,7 @@ type SaveData = {
 	name: string;
 	line: number;
 	col: number;
+	encoding?: string
 };
 
 class Reader {
@@ -104,7 +105,7 @@ class Reader {
 		if (!fs.existsSync(saveDataPath)) {
 			this.save();
 		} else {
-			let data = fs.readFileSync(saveDataPath, { encoding: 'utf-8' }).toString();
+			let data = fs.readFileSync(saveDataPath).toString();
 			if (data)
 				this.saveDataList = JSON.parse(data);
 		}
@@ -174,9 +175,10 @@ class Reader {
 		this.saveData.name =
 			myStatusBarItem.tooltip = file;
 		this.updateText('loading book');
-		let readStream = fs.createReadStream(path.join(bookDirPath, file), {
+		let opt: any = {
 			encoding: 'utf-8',
-		});
+		};
+		let readStream = fs.createReadStream(path.join(bookDirPath, file), opt);
 		this.rl = readline.createInterface({
 			input: readStream
 		});
@@ -201,7 +203,7 @@ class Reader {
 	setText() {
 		let text = this.lines[this.currLine];
 		this.currText = text.substr(this.currCol, this.textLength);
-		this.updateText(this.currText + `(${this.currLine + 1}/${this.lines.length})`);
+		this.updateText(this.currText + ` (${this.currLine + 1}/${this.lines.length})`);
 		this.bookStatus = BookStatus.reading;
 		this.saveProgress();
 	}
@@ -225,8 +227,8 @@ class Reader {
 			return;
 		}
 
-		this.currCol = this.currCol + this.currText.length
-		if (line || this.currCol + this.currText.length >= text.length) {
+		this.currCol = this.currCol + this.currText.length;
+		if (line || this.currCol >= text.length) {
 			if (this.bookStatus !== BookStatus.start)
 				this.currLine++;
 			this.clear();

@@ -18,7 +18,7 @@
 		"Other"
 	],
 	"activationEvents": [
-		"*"
+		"onCommand:statusBarReader.toggle"
 	],
 	"contributes": {
 		"commands": [],
@@ -41,11 +41,15 @@
 			},
 			{
 				"command": "statusBarReader.toggle",
-				"key": "ctrl+alt+,"
+				"key": "ctrl+alt+="
 			},
 			{
 				"command": "statusBarReader.line",
 				"key": "ctrl+alt+l"
+			},
+			{
+				"command": "statusBarReader.encoding",
+				"key": "ctrl+alt+e"
 			}
 		],
 		"configuration": {
@@ -64,5 +68,6 @@
 	"devDependencies": {
 		"@types/node": "^13.1.2",
 		"@types/vscode": "^1.41.0"
-	}
+	},
+	"dependencies": {}
 }
