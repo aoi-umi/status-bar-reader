@@ -1,6 +1,5 @@
 # status bar reader
 
-## This is the README for your extension pack "status-bar-reader"
 
 you can read book on the status bar
 
@@ -13,9 +12,11 @@ you can read book on the status bar
 | `ctrl+up`    | prevLine      |
 | `ctrl+alt+l` | go to line    |
 
-## For more information
+![preview](https://raw.githubusercontent.com/aoi-umi/note/master/git%E6%96%87%E6%A1%A3/status-bar-reader/preview.gif)
 
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+书本目录  
+`C:\Users\{user name}\.vscode\extensions\umi-aoi.status-bar-reader-x.x.x\book`
 
-**Enjoy!**
+或通过设置 `statusBarReader.rootDir` 改变根目录
+
+`statusBarReader.textLength` 每次显示最大长度

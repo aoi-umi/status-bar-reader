@@ -4,3 +4,4 @@ package-lock.json
 saveData
 book
 !book/test.txt
+*.vsix

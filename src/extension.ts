@@ -5,9 +5,19 @@ import * as readline from 'readline';
 
 let myStatusBarItem: vscode.StatusBarItem;
 
+let rootDir = path.join(__dirname, '..');
+let bookDirPath = '';
+let saveDataDirPath = '';
+let saveDataPath = '';
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 	let textLength = vscode.workspace.getConfiguration().get<number>("statusBarReader.textLength");
+	let cfgRootDir = vscode.workspace.getConfiguration().get<string>("statusBarReader.rootDir");
+	if (cfgRootDir)
+		rootDir = cfgRootDir;
 
+	bookDirPath = path.join(rootDir, 'book');
+	saveDataDirPath = path.join(rootDir, 'saveData');
+	saveDataPath = path.join(saveDataDirPath, 'data.json');
 	let reader = new Reader({
 		textLength
 	});
@@ -57,9 +67,6 @@ const BookStatus = {
 	reading: 1,
 	end: 2
 };
-let bookDirPath = path.join(__dirname, '../book');
-let saveDataDirPath = path.join(__dirname, '../saveData');
-let saveDataPath = path.join(saveDataDirPath, './data.json');
 let mkdirsSync = function (dirname, mode?) {
 	if (fs.existsSync(dirname)) {
 		return true;
@@ -101,6 +108,7 @@ class Reader {
 
 	async initEnv() {
 		this.updateText('init env');
+		mkdirsSync(bookDirPath);
 		mkdirsSync(saveDataDirPath);
 		if (!fs.existsSync(saveDataPath)) {
 			this.save();

@@ -1,6 +1,6 @@
 {
 	"name": "status-bar-reader",
-	"displayName": "status-bar-reader",
+	"displayName": "status bar reader",
 	"description": "read book on status bar",
 	"main": "./out/extension.js",
 	"publisher": "umi-aoi",
@@ -17,6 +17,11 @@
 	"categories": [
 		"Other"
 	],
+	"license": "ISC",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aoi-umi/status-bar-reader"
+	},
 	"activationEvents": [
 		"onCommand:statusBarReader.toggle"
 	],
@@ -60,6 +65,10 @@
 					"type": "number",
 					"default": 20,
 					"description": "每次显示字数"
+				},
+				"statusBarReader.rootDir": {
+					"type": "string",
+					"description": "根目录"
 				}
 			}
 		}
